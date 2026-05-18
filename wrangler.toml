@@ -1,0 +1,11 @@
+name = "graduation-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "graduation-db"
+database_id = "aa9f73eb-67ac-47a1-80c3-06d00f17c8bf"
+
+[vars]
+JWT_SECRET = "graduation-secret-change-this"
