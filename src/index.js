@@ -1,14 +1,19 @@
 import { signJWT, verifyJWT, hashPassword, verifyPassword } from './crypto.js';
 
-// ─── 응답 헬퍼 ────────────────────────────────────────────
-const json = (data, status = 200) => Response.json(data, {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+};
+
+const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-  }
+    'Content-Type': 'application/json; charset=utf-8',
+    ...corsHeaders,
+  },
 });
+
 const err = (msg, status = 400) => json({ error: msg }, status);
 
 // ─── JWT 미들웨어 ─────────────────────────────────────────
@@ -34,8 +39,13 @@ export default {
     const path = url.pathname;
     const method = req.method;
 
-    // CORS preflight
-    if (method === 'OPTIONS') return json({});
+    if (method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
+    }
+
 
     // 헬스체크
     if (path === '/health') return json({ status: 'ok', time: new Date().toISOString() });
