@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>졸업요건관리 시스템 - Trilogic</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { background: #020617; }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    button { border: none; cursor: pointer; background: none; }
+    input, select { outline: none; }
+    table { border-collapse: collapse; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = 'https://graduation-api.graduationhi.workers.dev';
+    const { useState } = React;
+
+    // SVG Icons
+    const Icon = ({ name, size = 24, color = "currentColor" }) => {
+      const icons = {
+        bell: <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>,
+        book: <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>,
+        graduation: <><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></>,
+        upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>,
+        logout: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>,
+        chevron: <path d="m9 18 6-6-6-6"/>,
+        check: <path d="M20 6 9 17l-5-5"/>,
+        x: <path d="M18 6 6 18M6 6l12 12"/>,
+        alert: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
+        file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></>,
+        user: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+        search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>,
+        plus: <path d="M12 5v14M5 12h14"/>,
+        trash: <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>,
+        award: <><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></>,
+        clock: <><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>,
+        trending: <path d="m23 6-9.5 9.5-5-5L1 18M17 6h6v6"/>,
+      };
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {icons[name]}
+        </svg>
+      );
+    };
+
+    // Data
+    const TRACKS = [
+      { id: 1, name: '논문 트랙', desc: '졸업논문 작성 및 심사를 통한 졸업' },
+      { id: 2, name: '시험 트랙', desc: '종합시험 통과를 통한 졸업' },
+      { id: 3, name: '프로젝트 트랙', desc: '캡스톤 프로젝트 수행을 통한 졸업' },
+    ];
+
+    const REQUIREMENTS = {
+      1: [
+        { id: 1, type: '전공필수', credits: 45 },
+        { id: 2, type: '전공선택', credits: 15 },
+        { id: 3, type: '교양필수', credits: 18 },
+        { id: 4, type: '교양선택', credits: 12 },
+        { id: 5, type: '졸업논문', credits: 0 },
+      ],
+      2: [
+        { id: 1, type: '전공필수', credits: 48 },
+        { id: 2, type: '전공선택', credits: 12 },
+        { id: 3, type: '교양필수', credits: 18 },
+        { id: 4, type: '교양선택', credits: 12 },
+        { id: 5, type: '종합시험', credits: 0 },
+      ],
+      3: [
+        { id: 1, type: '전공필수', credits: 42 },
+        { id: 2, type: '전공선택', credits: 18 },
+        { id: 3, type: '교양필수', credits: 18 },
+        { id: 4, type: '교양선택', credits: 12 },
+        { id: 5, type: '캡스톤', credits: 6 },
+      ],
+    };
+
+    const COURSES = [
+      { id: 1, code: 'CS101', name: '컴퓨터개론', credits: 3, cat: '전공필수' },
+      { id: 2, code: 'CS201', name: '자료구조', credits: 3, cat: '전공필수' },
+      { id: 3, code: 'CS301', name: '알고리즘', credits: 3, cat: '전공필수' },
+      { id: 4, code: 'CS401', name: '운영체제', credits: 3, cat: '전공필수' },
+      { id: 5, code: 'CS402', name: '데이터베이스', credits: 3, cat: '전공필수' },
+      { id: 6, code: 'CS403', name: '컴퓨터네트워크', credits: 3, cat: '전공필수' },
+      { id: 7, code: 'CS501', name: '소프트웨어공학', credits: 3, cat: '전공필수' },
+      { id: 8, code: 'CS502', name: '인공지능', credits: 3, cat: '전공선택' },
+      { id: 9, code: 'CS503', name: '머신러닝', credits: 3, cat: '전공선택' },
+      { id: 10, code: 'GE101', name: '글쓰기', credits: 3, cat: '교양필수' },
+      { id: 11, code: 'GE102', name: '영어회화', credits: 3, cat: '교양필수' },
+      { id: 12, code: 'GE201', name: '철학개론', credits: 3, cat: '교양선택' },
+      { id: 13, code: 'GE202', name: '심리학개론', credits: 3, cat: '교양선택' },
+    ];
+
+    const INIT_COMPLETED = [
+      { id: 1, cid: 1, sem: '2023-1', grade: 'A+', cr: 3 },
+      { id: 2, cid: 2, sem: '2023-1', grade: 'A0', cr: 3 },
+      { id: 3, cid: 3, sem: '2023-2', grade: 'B+', cr: 3 },
+      { id: 4, cid: 4, sem: '2023-2', grade: 'A+', cr: 3 },
+      { id: 5, cid: 5, sem: '2024-1', grade: 'A0', cr: 3 },
+      { id: 6, cid: 8, sem: '2024-1', grade: 'B+', cr: 3 },
+      { id: 7, cid: 10, sem: '2023-1', grade: 'A+', cr: 3 },
+      { id: 8, cid: 11, sem: '2023-2', grade: 'A0', cr: 3 },
+      { id: 9, cid: 12, sem: '2024-1', grade: 'B0', cr: 3 },
+    ];
+
+    const NOTIFS = [
+      { id: 1, msg: '전공필수 학점이 부족합니다. 30학점 추가 이수가 필요합니다.', date: '2024-11-28', read: false },
+      { id: 2, msg: '2024학년도 2학기 수강신청이 시작되었습니다.', date: '2024-11-25', read: true },
+      { id: 3, msg: '증빙자료(TOEIC 성적표)가 승인되었습니다.', date: '2024-11-20', read: true },
+    ];
+
+    const INIT_DOCS = [
+      { id: 1, name: 'TOEIC_성적표.pdf', type: '어학성적', status: 'approved', date: '2024-11-15' },
+      { id: 2, name: '정보처리기사_자격증.pdf', type: '자격증', status: 'pending', date: '2024-11-28' },
+    ];
+
+    // Utilities
+    const calcGPA = (completed) => {
+      const pts = { 'A+': 4.5, 'A0': 4.0, 'B+': 3.5, 'B0': 3.0, 'C+': 2.5, 'C0': 2.0, 'D+': 1.5, 'D0': 1.0, 'F': 0 };
+      let total = 0, cr = 0;
+      completed.forEach(c => { if (pts[c.grade] !== undefined) { total += pts[c.grade] * c.cr; cr += c.cr; } });
+      return cr > 0 ? (total / cr).toFixed(2) : '0.00';
+    };
+
+    const calcCredits = (completed, cat) => {
+      return completed.reduce((sum, c) => {
+        const course = COURSES.find(x => x.id === c.cid);
+        return course && course.cat === cat ? sum + c.cr : sum;
+      }, 0);
+    };
+
+    // Styles
+    const s = {
+      loginBg: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' },
+      card: { background: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(24px)', borderRadius: '24px', padding: '40px', border: '1px solid rgba(255,255,255,0.1)', width: '100%', maxWidth: '400px' },
+      input: { width: '100%', padding: '16px 20px', background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(51,65,85,0.5)', borderRadius: '12px', color: '#fff', fontSize: '14px' },
+      btn: { background: 'linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899)', color: '#fff', padding: '16px', borderRadius: '12px', fontWeight: 600, width: '100%' },
+      sidebar: { width: '288px', height: '100vh', background: '#0f172a', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', flexShrink: 0 },
+      content: { flex: 1, overflowY: 'auto', padding: '32px' },
+      statCard: (color) => ({ background: `linear-gradient(to bottom right, ${color}33, ${color}1a)`, border: `1px solid ${color}4d`, borderRadius: '16px', padding: '24px' }),
+      panel: { background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(51,65,85,0.5)', borderRadius: '16px', padding: '24px' },
+      tag: (bg, text) => ({ padding: '4px 12px', borderRadius: '8px', fontSize: '14px', background: bg, color: text }),
+    };
+
+    // Components
+    const Login = ({ onLogin }) => {
+      const [sid, setSid] = useState('');
+      const [name, setName] = useState('');
+      const [err, setErr] = useState('');
+      const [admin, setAdmin] = useState(false);
+
+      const login = async () => {
+  if (!sid || !name) { setErr('학번과 이름을 입력해주세요.'); return; }
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sid, name })
+    });
+    const data = await res.json();
+    if (!res.ok) { setErr(data.error); return; }
+    localStorage.setItem('token', data.token);
+    onLogin(data.user);
+  } catch {
+    setErr('서버 연결 실패');
+  }
+};
+
+      return (
+        <div style={s.loginBg}>
+          <div style={s.card}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', background: 'linear-gradient(to bottom right, #3b82f6, #8b5cf6)', borderRadius: '16px', marginBottom: '24px' }}>
+                <Icon name="graduation" size={40} color="#fff" />
+              </div>
+              <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>졸업요건관리</h1>
+              <p style={{ color: '#94a3b8', fontSize: '14px' }}>Trilogic System</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', padding: '4px', background: 'rgba(30,41,59,0.5)', borderRadius: '12px' }}>
+              <button onClick={() => setAdmin(false)} style={{ flex: 1, padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, color: !admin ? '#fff' : '#94a3b8', background: !admin ? 'linear-gradient(to right, #3b82f6, #8b5cf6)' : 'transparent' }}>학생</button>
+              <button onClick={() => setAdmin(true)} style={{ flex: 1, padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, color: admin ? '#fff' : '#94a3b8', background: admin ? 'linear-gradient(to right, #3b82f6, #8b5cf6)' : 'transparent' }}>관리자</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#94a3b8', fontSize: '14px', marginBottom: '8px' }}>{admin ? '관리자 ID' : '학번'}</label>
+                <input type="text" value={sid} onChange={e => setSid(e.target.value)} onKeyPress={e => e.key === 'Enter' && login()} placeholder={admin ? 'admin' : '23114234'} style={s.input} />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#94a3b8', fontSize: '14px', marginBottom: '8px' }}>이름</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} onKeyPress={e => e.key === 'Enter' && login()} placeholder={admin ? '관리자' : '홍길동'} style={s.input} />
+              </div>
+            </div>
+
+            {err && (
+              <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Icon name="alert" size={20} color="#f87171" />
+                <p style={{ color: '#f87171', fontSize: '14px' }}>{err}</p>
+              </div>
+            )}
+
+            <button onClick={login} style={{ ...s.btn, marginTop: '24px' }}>로그인</button>
+          </div>
+        </div>
+      );
+    };
+
+    const Sidebar = ({ menu, setMenu, user, logout }) => {
+      const studentMenus = [
+        { id: 'dash', icon: 'trending', label: '대시보드' },
+        { id: 'req', icon: 'book', label: '졸업요건 조회' },
+        { id: 'course', icon: 'graduation', label: '이수내역 관리' },
+        { id: 'doc', icon: 'upload', label: '증빙자료 관리' },
+        { id: 'notif', icon: 'bell', label: '알림' },
+      ];
+      const adminMenus = [
+        { id: 'admin-dash', icon: 'trending', label: '관리자 대시보드' },
+        { id: 'admin-doc', icon: 'file', label: '증빙자료 승인' },
+      ];
+      const menus = user.admin ? adminMenus : studentMenus;
+
+      return (
+        <div style={s.sidebar}>
+          <div style={{ padding: '24px', borderBottom: '1px solid #1e293b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ width: '48px', height: '48px', background: 'linear-gradient(to bottom right, #3b82f6, #8b5cf6)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="graduation" size={24} color="#fff" />
+              </div>
+              <div>
+                <h2 style={{ color: '#fff', fontWeight: 'bold' }}>졸업요건관리</h2>
+                <p style={{ color: '#64748b', fontSize: '12px' }}>Trilogic</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '16px', borderBottom: '1px solid #1e293b' }}>
+            <div style={{ background: 'rgba(30,41,59,0.5)', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', background: 'linear-gradient(to bottom right, #10b981, #14b8a6)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="user" size={20} color="#fff" />
+              </div>
+              <div>
+                <p style={{ color: '#fff', fontWeight: 500, fontSize: '14px' }}>{user.name}</p>
+                <p style={{ color: '#64748b', fontSize: '12px' }}>{user.admin ? '관리자' : user.sid}</p>
+              </div>
+            </div>
+          </div>
+
+          <nav style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
+            {menus.map(m => (
+              <button key={m.id} onClick={() => setMenu(m.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 16px', borderRadius: '12px', marginBottom: '8px', background: menu === m.id ? 'linear-gradient(to right, rgba(59,130,246,0.2), rgba(139,92,246,0.2))' : 'transparent', border: menu === m.id ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent', color: menu === m.id ? '#fff' : '#94a3b8' }}>
+                <Icon name={m.icon} size={20} />
+                <span style={{ fontWeight: 500, fontSize: '14px' }}>{m.label}</span>
+                {menu === m.id && <span style={{ marginLeft: 'auto' }}><Icon name="chevron" size={16} /></span>}
+              </button>
+            ))}
+          </nav>
+
+          <div style={{ padding: '16px', borderTop: '1px solid #1e293b' }}>
+            <button onClick={logout} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '12px', color: '#94a3b8', borderRadius: '12px' }}>
+              <Icon name="logout" size={20} />
+              <span style={{ fontWeight: 500, fontSize: '14px' }}>로그아웃</span>
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    const Dashboard = ({ user, completed }) => {
+      const trackName = TRACKS.find(t => t.id === user.track)?.name || '미선택';
+      const reqs = REQUIREMENTS[user.track] || [];
+      const gpa = calcGPA(completed);
+      const totalCr = completed.reduce((s, c) => s + c.cr, 0);
+      const reqTotal = reqs.reduce((s, r) => s + r.credits, 0);
+      const progress = Math.min((totalCr / reqTotal) * 100, 100);
+
+      const cats = [
+        { name: '전공필수', earned: calcCredits(completed, '전공필수'), req: reqs.find(r => r.type === '전공필수')?.credits || 0, color: '#3B82F6' },
+        { name: '전공선택', earned: calcCredits(completed, '전공선택'), req: reqs.find(r => r.type === '전공선택')?.credits || 0, color: '#8B5CF6' },
+        { name: '교양필수', earned: calcCredits(completed, '교양필수'), req: reqs.find(r => r.type === '교양필수')?.credits || 0, color: '#10B981' },
+        { name: '교양선택', earned: calcCredits(completed, '교양선택'), req: reqs.find(r => r.type === '교양선택')?.credits || 0, color: '#F59E0B' },
+      ];
+
+      return (
+        <div style={s.content}>
+          <div style={{ marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>대시보드</h1>
+            <p style={{ color: '#94a3b8' }}>졸업 진행 현황을 한눈에 확인하세요</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '32px' }}>
+            <div style={s.statCard('#3B82F6')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: 'rgba(59,130,246,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="graduation" size={24} color="#60a5fa" /></div>
+                <span style={{ color: '#60a5fa', fontSize: '14px' }}>{trackName}</span>
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '14px' }}>졸업 트랙</p>
+              <p style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>선택됨</p>
+            </div>
+
+            <div style={s.statCard('#8B5CF6')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: 'rgba(139,92,246,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="book" size={24} color="#a78bfa" /></div>
+                <span style={{ color: '#a78bfa', fontSize: '14px' }}>/{reqTotal}학점</span>
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '14px' }}>이수 학점</p>
+              <p style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>{totalCr}학점</p>
+            </div>
+
+            <div style={s.statCard('#10B981')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: 'rgba(16,185,129,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="award" size={24} color="#34d399" /></div>
+                <span style={{ color: '#34d399', fontSize: '14px' }}>/4.5</span>
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '14px' }}>평균 학점</p>
+              <p style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>{gpa}</p>
+            </div>
+
+            <div style={s.statCard('#F59E0B')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: 'rgba(245,158,11,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trending" size={24} color="#fbbf24" /></div>
+                <span style={{ color: '#fbbf24', fontSize: '14px' }}>진행중</span>
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '14px' }}>졸업 진행률</p>
+              <p style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>{progress.toFixed(0)}%</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px', marginBottom: '32px' }}>
+            <div style={s.panel}>
+              <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '24px' }}>학점 이수 현황</h3>
+              {cats.map((cat, i) => {
+                const max = Math.max(...cats.map(c => Math.max(c.earned, c.req)));
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ width: '70px', fontSize: '12px', color: '#94a3b8' }}>{cat.name}</div>
+                    <div style={{ flex: 1, height: '24px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ position: 'absolute', height: '100%', width: `${(cat.req / max) * 100}%`, background: '#334155', borderRadius: '4px' }}></div>
+                      <div style={{ position: 'absolute', height: '100%', width: `${(cat.earned / max) * 100}%`, background: cat.color, borderRadius: '4px', transition: 'width 0.5s' }}></div>
+                    </div>
+                    <div style={{ width: '60px', textAlign: 'right', fontSize: '12px', color: '#fff' }}>{cat.earned}/{cat.req}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={s.panel}>
+              <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '24px' }}>학점 분포</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <svg viewBox="0 0 100 100" style={{ width: '120px', height: '120px' }}>
+                  {(() => {
+                    const total = cats.reduce((s, c) => s + c.earned, 0) || 1;
+                    let angle = 0;
+                    return cats.map((cat, i) => {
+                      const a = (cat.earned / total) * 360;
+                      const start = angle;
+                      angle += a;
+                      const r1 = (start - 90) * Math.PI / 180;
+                      const r2 = (start + a - 90) * Math.PI / 180;
+                      const x1 = 50 + 35 * Math.cos(r1);
+                      const y1 = 50 + 35 * Math.sin(r1);
+                      const x2 = 50 + 35 * Math.cos(r2);
+                      const y2 = 50 + 35 * Math.sin(r2);
+                      return <path key={i} d={`M 50 50 L ${x1} ${y1} A 35 35 0 ${a > 180 ? 1 : 0} 1 ${x2} ${y2} Z`} fill={cat.color} />;
+                    });
+                  })()}
+                  <circle cx="50" cy="50" r="22" fill="#0f172a" />
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {cats.map((cat, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: cat.color }}></div>
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>{cat.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={s.panel}>
+            <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '24px' }}>졸업요건 충족 현황</h3>
+            {cats.map((cat, i) => {
+              const pct = cat.req > 0 ? Math.min((cat.earned / cat.req) * 100, 100) : 100;
+              const ok = cat.earned >= cat.req;
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                  <div style={{ width: '96px', color: '#94a3b8', fontSize: '14px' }}>{cat.name}</div>
+                  <div style={{ flex: 1, height: '12px', background: '#334155', borderRadius: '9999px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: cat.color, borderRadius: '9999px', transition: 'width 0.5s' }}></div>
+                  </div>
+                  <div style={{ width: '80px', textAlign: 'right', fontSize: '14px', color: ok ? '#34d399' : '#94a3b8' }}>{cat.earned}/{cat.req}</div>
+                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: ok ? 'rgba(16,185,129,0.2)' : '#334155' }}>
+                    <Icon name={ok ? 'check' : 'x'} size={16} color={ok ? '#34d399' : '#64748b'} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    const Requirements = ({ user, completed }) => {
+      const [track, setTrack] = useState(user.track);
+      const reqs = REQUIREMENTS[track] || [];
+
+      return (
+        <div style={s.content}>
+          <div style={{ marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>졸업요건 조회</h1>
+            <p style={{ color: '#94a3b8' }}>트랙별 졸업요건을 확인하세요</p>
+          </div>
+
+          <div style={{ ...s.panel, marginBottom: '24px' }}>
+            <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '16px' }}>졸업 트랙 선택</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {TRACKS.map(t => (
+                <button key={t.id} onClick={() => setTrack(t.id)} style={{ padding: '20px', borderRadius: '12px', textAlign: 'left', background: track === t.id ? 'linear-gradient(to bottom right, rgba(59,130,246,0.2), rgba(139,92,246,0.2))' : 'rgba(30,41,59,0.5)', border: track === t.id ? '1px solid rgba(59,130,246,0.5)' : '1px solid rgba(51,65,85,0.5)', color: track === t.id ? '#fff' : '#94a3b8' }}>
+                  <h4 style={{ fontWeight: 600, marginBottom: '8px' }}>{t.name}</h4>
+                  <p style={{ fontSize: '14px', opacity: 0.7 }}>{t.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={s.panel}>
+            <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '24px' }}>요건 목록</h3>
+            {reqs.map(req => {
+              const earned = req.type.includes('전공') || req.type.includes('교양') ? calcCredits(completed, req.type) : 0;
+              const ok = req.credits === 0 ? false : earned >= req.credits;
+              return (
+                <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '20px', background: 'rgba(15,23,42,0.5)', borderRadius: '12px', marginBottom: '16px', border: '1px solid rgba(51,65,85,0.3)' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: ok ? 'rgba(16,185,129,0.2)' : 'rgba(51,65,85,0.5)' }}>
+                    <Icon name={ok ? 'check' : 'clock'} size={24} color={ok ? '#34d399' : '#64748b'} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ color: '#fff', fontWeight: 500, marginBottom: '4px' }}>{req.type}</h4>
+                    <p style={{ color: '#64748b', fontSize: '14px' }}>필수 과목 이수</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    {req.credits > 0 ? (
+                      <>
+                        <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: ok ? '#34d399' : '#fff' }}>{earned} / {req.credits}</p>
+                        <p style={{ color: '#64748b', fontSize: '14px' }}>학점</p>
+                      </>
+                    ) : (
+                      <span style={s.tag('rgba(245,158,11,0.2)', '#fbbf24')}>별도 심사</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    const Courses = ({ completed, setCompleted }) => {
+      const [search, setSearch] = useState('');
+      const [modal, setModal] = useState(false);
+      const [newC, setNewC] = useState({ cid: '', sem: '', grade: '' });
+
+      const filtered = completed.filter(c => {
+        const course = COURSES.find(x => x.id === c.cid);
+        return course?.name.includes(search) || course?.code.includes(search);
+      });
+
+      const add = () => {
+        if (newC.cid && newC.sem && newC.grade) {
+          const course = COURSES.find(c => c.id === parseInt(newC.cid));
+          setCompleted([...completed, { id: Date.now(), cid: parseInt(newC.cid), sem: newC.sem, grade: newC.grade, cr: course?.credits || 3 }]);
+          setModal(false);
+          setNewC({ cid: '', sem: '', grade: '' });
+        }
+      };
+
+      return (
+        <div style={s.content}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
+            <div>
+              <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>이수내역 관리</h1>
+              <p style={{ color: '#94a3b8' }}>수강한 과목을 등록하고 관리하세요</p>
+            </div>
+            <button onClick={() => setModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'linear-gradient(to right, #3b82f6, #8b5cf6)', color: '#fff', fontWeight: 500, borderRadius: '12px' }}>
+              <Icon name="plus" size={20} color="#fff" />과목 추가
+            </button>
+          </div>
+
+          <div style={{ position: 'relative', marginBottom: '24px' }}>
+            <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }}><Icon name="search" size={20} color="#64748b" /></div>
+            <input type="text" placeholder="과목명 또는 과목코드로 검색..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...s.input, paddingLeft: '48px' }} />
+          </div>
+
+          <div style={{ ...s.panel, padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(51,65,85,0.5)' }}>
+                  {['과목코드', '과목명', '구분', '학기', '학점', '성적', '관리'].map(h => (
+                    <th key={h} style={{ padding: '16px 24px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: '14px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(c => {
+                  const course = COURSES.find(x => x.id === c.cid);
+                  const gradeColor = c.grade.startsWith('A') ? '#34d399' : c.grade.startsWith('B') ? '#60a5fa' : c.grade.startsWith('C') ? '#fbbf24' : '#f87171';
+                  return (
+                    <tr key={c.id} style={{ borderBottom: '1px solid rgba(51,65,85,0.3)' }}>
+                      <td style={{ padding: '16px 24px', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '14px' }}>{course?.code}</td>
+                      <td style={{ padding: '16px 24px', color: '#fff', fontWeight: 500 }}>{course?.name}</td>
+                      <td style={{ padding: '16px 24px' }}><span style={s.tag(course?.cat.includes('전공') ? 'rgba(59,130,246,0.2)' : 'rgba(16,185,129,0.2)', course?.cat.includes('전공') ? '#60a5fa' : '#34d399')}>{course?.cat}</span></td>
+                      <td style={{ padding: '16px 24px', color: '#cbd5e1' }}>{c.sem}</td>
+                      <td style={{ padding: '16px 24px', color: '#cbd5e1' }}>{c.cr}</td>
+                      <td style={{ padding: '16px 24px', fontWeight: 'bold', color: gradeColor }}>{c.grade}</td>
+                      <td style={{ padding: '16px 24px' }}><button onClick={() => setCompleted(completed.filter(x => x.id !== c.id))} style={{ padding: '8px', color: '#64748b' }}><Icon name="trash" size={16} /></button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {modal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+              <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '400px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', marginBottom: '24px' }}>과목 추가</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '14px', marginBottom: '8px' }}>과목 선택</label>
+                    <select value={newC.cid} onChange={e => setNewC({ ...newC, cid: e.target.value })} style={{ ...s.input, background: '#1e293b' }}>
+                      <option value="">과목을 선택하세요</option>
+                      {COURSES.filter(c => !completed.find(x => x.cid === c.id)).map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '14px', marginBottom: '8px' }}>수강 학기</label>
+                    <select value={newC.sem} onChange={e => setNewC({ ...newC, sem: e.target.value })} style={{ ...s.input, background: '#1e293b' }}>
+                      <option value="">학기를 선택하세요</option>
+                      {['2024-2', '2024-1', '2023-2', '2023-1'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '14px', marginBottom: '8px' }}>성적</label>
+                    <select value={newC.grade} onChange={e => setNewC({ ...newC, grade: e.target.value })} style={{ ...s.input, background: '#1e293b' }}>
+                      <option value="">성적을 선택하세요</option>
+                      {['A+', 'A0', 'B+', 'B0', 'C+', 'C0', 'D+', 'D0', 'F'].map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
+                  <button onClick={() => setModal(false)} style={{ flex: 1, padding: '12px', background: '#1e293b', color: '#cbd5e1', borderRadius: '12px' }}>취소</button>
+                  <button onClick={add} style={{ flex: 1, padding: '12px', background: 'linear-gradient(to right, #3b82f6, #8b5cf6)', color: '#fff', borderRadius: '12px' }}>추가</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const Documents = ({ docs, setDocs }) => {
+      const [drag, setDrag] = useState(false);
+      const statusMap = { pending: { bg: 'rgba(245,158,11,0.2)', text: '#fbbf24', label: '검토중' }, approved: { bg: 'rgba(16,185,129,0.2)', text: '#34d399', label: '승인됨' }, rejected: { bg: 'rgba(239,68,68,0.2)', text: '#f87171', label: '반려됨' } };
+
+      const handleDrop = e => { e.preventDefault(); setDrag(false); setDocs([...docs, { id: Date.now(), name: '새로운_증빙자료.pdf', type: '자격증', status: 'pending', date: new Date().toISOString().split('T')[0] }]); };
+
+      return (
+        <div style={s.content}>
+          <div style={{ marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>증빙자료 관리</h1>
+            <p style={{ color: '#94a3b8' }}>자격증, 어학성적 등 증빙자료를 제출하세요</p>
+          </div>
+
+          <div onDragEnter={e => { e.preventDefault(); setDrag(true); }} onDragLeave={e => { e.preventDefault(); setDrag(false); }} onDragOver={e => e.preventDefault()} onDrop={handleDrop} style={{ marginBottom: '32px', border: `2px dashed ${drag ? '#3b82f6' : '#334155'}`, borderRadius: '16px', padding: '40px', textAlign: 'center', background: drag ? 'rgba(59,130,246,0.1)' : 'transparent' }}>
+            <div style={{ width: '64px', height: '64px', background: '#1e293b', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><Icon name="upload" size={32} color="#64748b" /></div>
+            <p style={{ color: '#fff', fontWeight: 500, marginBottom: '8px' }}>파일을 여기에 드래그하거나</p>
+            <button style={{ padding: '8px 24px', background: 'linear-gradient(to right, #3b82f6, #8b5cf6)', color: '#fff', borderRadius: '12px' }}>파일 선택</button>
+            <p style={{ color: '#64748b', fontSize: '14px', marginTop: '16px' }}>PDF, JPG, PNG (최대 10MB)</p>
+          </div>
+
+          <div style={s.panel}>
+            <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(51,65,85,0.5)' }}>제출된 자료</h3>
+            {docs.map((doc, i) => {
+              const st = statusMap[doc.status];
+              return (
+                <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '16px 0', borderTop: i > 0 ? '1px solid rgba(51,65,85,0.3)' : 'none' }}>
+                  <div style={{ width: '48px', height: '48px', background: 'rgba(51,65,85,0.5)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="file" size={24} color="#94a3b8" /></div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ color: '#fff', fontWeight: 500, marginBottom: '4px' }}>{doc.name}</h4>
+                    <p style={{ color: '#64748b', fontSize: '14px' }}>{doc.type} • {doc.date}</p>
+                  </div>
+                  <span style={s.tag(st.bg, st.text)}>{st.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    const Notifications = () => (
+      <div style={s.content}>
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>알림</h1>
+          <p style={{ color: '#94a3b8' }}>중요한 알림을 확인하세요</p>
+        </div>
+        {NOTIFS.map(n => (
+          <div key={n.id} style={{ padding: '24px', borderRadius: '16px', marginBottom: '16px', background: n.read ? 'rgba(30,41,59,0.3)' : 'linear-gradient(to right, rgba(59,130,246,0.1), rgba(139,92,246,0.1))', border: `1px solid ${n.read ? 'rgba(51,65,85,0.3)' : 'rgba(59,130,246,0.3)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: n.read ? 'rgba(51,65,85,0.5)' : 'rgba(59,130,246,0.2)' }}><Icon name="bell" size={20} color={n.read ? '#64748b' : '#60a5fa'} /></div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 500, marginBottom: '4px', color: n.read ? '#94a3b8' : '#fff' }}>{n.msg}</p>
+                <p style={{ color: '#64748b', fontSize: '14px' }}>{n.date}</p>
+              </div>
+              {!n.read && <div className="animate-pulse" style={{ width: '12px', height: '12px', background: '#3b82f6', borderRadius: '50%' }}></div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    const AdminDash = () => (
+      <div style={s.content}>
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>관리자 대시보드</h1>
+          <p style={{ color: '#94a3b8' }}>시스템 현황을 한눈에 확인하세요</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '32px' }}>
+          {[{ l: '전체 학생', v: '1,234', c: '+12%' }, { l: '졸업 예정자', v: '156', c: '+8%' }, { l: '요건 미충족', v: '89', c: '-5%' }, { l: '대기 증빙자료', v: '23', c: '+3' }].map((st, i) => (
+            <div key={i} style={s.panel}>
+              <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '8px' }}>{st.l}</p>
+              <p style={{ color: '#fff', fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '4px' }}>{st.v}</p>
+              <p style={{ color: '#34d399', fontSize: '14px' }}>{st.c}</p>
+            </div>
+          ))}
+        </div>
+        <div style={s.panel}>
+          <h3 style={{ color: '#fff', fontWeight: 600, marginBottom: '24px' }}>최근 활동</h3>
+          {[{ a: '새 증빙자료 제출', u: '박영은 (23114234)', t: '5분 전' }, { a: '이수내역 수정', u: '신한솔 (23114485)', t: '15분 전' }, { a: '회원가입', u: '정예린 (23115110)', t: '1시간 전' }].map((act, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(15,23,42,0.5)', borderRadius: '12px', marginBottom: '16px' }}>
+              <div style={{ width: '40px', height: '40px', background: 'rgba(51,65,85,0.5)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="clock" size={20} color="#64748b" /></div>
+              <div style={{ flex: 1 }}><p style={{ color: '#fff', fontWeight: 500 }}>{act.a}</p><p style={{ color: '#64748b', fontSize: '14px' }}>{act.u}</p></div>
+              <p style={{ color: '#64748b', fontSize: '14px' }}>{act.t}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    const AdminDocs = ({ docs, setDocs }) => {
+      const pending = docs.filter(d => d.status === 'pending');
+      return (
+        <div style={s.content}>
+          <div style={{ marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>증빙자료 승인</h1>
+            <p style={{ color: '#94a3b8' }}>학생들이 제출한 증빙자료를 검토하세요</p>
+          </div>
+          <div style={s.panel}>
+            {pending.length > 0 ? pending.map((doc, i) => (
+              <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '16px 0', borderTop: i > 0 ? '1px solid rgba(51,65,85,0.3)' : 'none' }}>
+                <div style={{ width: '48px', height: '48px', background: 'rgba(51,65,85,0.5)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="file" size={24} color="#94a3b8" /></div>
+                <div style={{ flex: 1 }}><h4 style={{ color: '#fff', fontWeight: 500, marginBottom: '4px' }}>{doc.name}</h4><p style={{ color: '#64748b', fontSize: '14px' }}>{doc.type} • {doc.date}</p></div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => setDocs(docs.map(d => d.id === doc.id ? { ...d, status: 'approved' } : d))} style={{ padding: '8px 16px', background: 'rgba(16,185,129,0.2)', color: '#34d399', borderRadius: '12px' }}>승인</button>
+                  <button onClick={() => setDocs(docs.map(d => d.id === doc.id ? { ...d, status: 'rejected' } : d))} style={{ padding: '8px 16px', background: 'rgba(239,68,68,0.2)', color: '#f87171', borderRadius: '12px' }}>반려</button>
+                </div>
+              </div>
+            )) : <p style={{ textAlign: 'center', color: '#64748b', padding: '32px' }}>검토 대기 중인 자료가 없습니다</p>}
+          </div>
+        </div>
+      );
+    };
+
+    // Main App
+    function App() {
+      const [user, setUser] = useState(null);
+      const [menu, setMenu] = useState('dash');
+      const [completed, setCompleted] = useState(INIT_COMPLETED);
+      const [docs, setDocs] = useState(INIT_DOCS);
+
+      if (!user) return <Login onLogin={setUser} />;
+
+      const render = () => {
+        if (user.admin) {
+          if (menu === 'admin-doc') return <AdminDocs docs={docs} setDocs={setDocs} />;
+          return <AdminDash />;
+        }
+        switch (menu) {
+          case 'req': return <Requirements user={user} completed={completed} />;
+          case 'course': return <Courses completed={completed} setCompleted={setCompleted} />;
+          case 'doc': return <Documents docs={docs} setDocs={setDocs} />;
+          case 'notif': return <Notifications />;
+          default: return <Dashboard user={user} completed={completed} />;
+        }
+      };
+
+      return (
+        <div style={{ minHeight: '100vh', background: '#020617', display: 'flex' }}>
+          <Sidebar menu={menu} setMenu={setMenu} user={user} logout={() => setUser(null)} />
+          <main style={{ flex: 1, overflowY: 'auto' }}>{render()}</main>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
