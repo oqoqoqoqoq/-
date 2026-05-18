@@ -1,5 +1,6 @@
 import { signJWT, verifyJWT, hashPassword, verifyPassword } from './crypto.js';
 
+// ─── 응답 헬퍼 ────────────────────────────────────────────
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
@@ -39,13 +40,13 @@ export default {
     const path = url.pathname;
     const method = req.method;
 
+    // CORS preflight
     if (method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
         headers: corsHeaders,
       });
     }
-
 
     // 헬스체크
     if (path === '/health') return json({ status: 'ok', time: new Date().toISOString() });
